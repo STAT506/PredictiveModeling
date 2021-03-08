@@ -1,0 +1,147 @@
+---
+title: "Regularized Regression"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(glmnet)
+set.seed(03082021)
+```
+
+In a regression framework the goal is to model the relationship between a variable of interest, $y$, and a set of covariates $\mathcal{X}$. Using the normal distributional assumptions then the joint distribution of the observed data, given the data $x_1, \dots, x_n$ along with $\beta$ and $\sigma^2$ can be written as:
+\begin{eqnarray}
+p(y_1, \dots, y_n|\tilde{x}_1, \dots, \tilde{x_n}, \tilde{\beta}, \sigma^2) &=& \prod_{i=1}^n p(y_i|\tilde{x}_i, \tilde{\beta}, \sigma^2)\\
+&=& (2 \pi \sigma^2)^{-n/2} \exp\left[-\frac{1}{2 \sigma^2} \sum_{i=1}^n\left(y_i - \tilde{\beta}^T \tilde{x}_i \right)^2 \right].
+\end{eqnarray}
+Note this is the same as the sampling, or generative model, that we have seen earlier in class.
+\vfill
+The model is often formulated using matrix expressions and a multivariate normal distribution. Let
+\begin{equation}
+\tilde{y}| X, \tilde{\beta}, \sigma^2 \sim MVN(X \tilde{\beta},\sigma^2 I),
+\end{equation}
+where $\tilde{y}$ is an $n \times 1$ vector of the responses, $X$ is an $n \times p$ matrix of the covariates where the $i^{th}$ row is $\tilde{x}_i$, and $I$ is a $p \times p$ identity matrix.
+\vfill
+
+In a classical setting, typically least squares methods are used to compute the values of the covariates in a regression setting. Note in a normal setting these correspond to maximum likelihood estimates. Specifically, we seek to minimize the sum of squared residuals ($SSR$), where $SSR(\tilde{\beta}) = \left(\tilde{y} - X \tilde{\beta}\right)^T \left(\tilde{y} - X \tilde{\beta}\right).$ 
+
+\vfill
+Thus we will take the derivative of this function with respect to $\beta$ to minimize this expression.
+\begin{eqnarray}
+\frac{d}{d\tilde{\beta}} SSR(\tilde{\beta}) &=& \frac{d}{d\tilde{\beta}} \left(\tilde{y} - X \tilde{\beta}\right)^T \left(\tilde{y} - X \tilde{\beta}\right)\\
+&=& \frac{d}{d\tilde{\beta}} \left( \tilde{y}^T \tilde{y} - 2 \tilde{\beta}^TX^T\tilde{y} + \tilde{\beta}^T X^T X \tilde{\beta}\right)\\
+&=& -2X^T \tilde{y} + 2 X^T X \tilde{\beta} \\
+ \text{ then set = 0}&\text{which implies}& X^TX \beta = X^t \tilde{y}\\
+&\text{and}& \tilde{\beta} = (X^TX)^{-1} X^t \tilde{y}.
+\end{eqnarray}
+This value is the OLS estimate of $\tilde{\beta}_{OLS} = (X^TX)^{-1} X^T \tilde{y}$. Under the flat prior $p(\tilde{\beta}) \propto 1$, $\tilde{\beta}_{OLS}$ is the mean of the posterior distribution.
+\vfill
+
+\newpage
+
+
+
+##### Bayesian Modeling and Regularization
+Ordinary Least Squares (OLS) regression can be written as:
+\begin{equation*}
+\hat{\tilde{\beta}}_{OLS} = \text{arg min}_{\hat{\tilde{\beta}}} \hspace{.2cm} ||\tilde{y} - X\hat{\tilde{\beta}}||^2_2 \rightarrow \hat{\tilde{\beta}} = (X^TX)^{-1} X^T \tilde{y},
+\end{equation*}
+where $||\tilde{x}||_p=\left(|x_1|^p + \dots + |x_m|^p \right)^{1/p}$ is an LP norm. So the L2 norm is $||\tilde{x}||_2= \sqrt{x_1^2 + \dots x_m^2}.$ 
+\vfill
+
+Recall ridge regression is a form of penalized regression such that:
+\begin{equation}
+\hat{\tilde{\beta}}_{R} = \text{arg min}_{\hat{\tilde{\beta}_R}} \hspace{.2cm} ||\tilde{y} - X\hat{\tilde{\beta}}||^2_2 + \lambda||\hat{\tilde{\beta}}_R||^2_2 \rightarrow \hat{\tilde{\beta}}_R = \left(X^TX + \lambda I \right)^{-1}X^T \tilde{y},
+\end{equation}
+where $\lambda$ is a tuning parameter that controls the amount of shrinkage.
+
+\vfill
+- As $\lambda$ gets large all of the values are shrunk toward 0. 
+\vfill
+- As $\lambda$ goes to 0, the ridge regression estimator results in the OLS estimator. 
+\vfill
+- It can be shown that ridge regression results better predictive ability than OLS by reducing variance of the predicted values at the expense of bias. Note that typically the $X$ values are assumed to be standardized, so that the intercept is not necessary.
+\vfill
+- __Q:__  How do we choose $\lambda$? 
+\vfill
+An alternative form of penalized regression is known as Least Absolute Shrinkage and Selection Operator (LASSO). The LASSO uses an L1 penalty such that:
+\begin{equation}
+\hat{\tilde{\beta}}_{L} = \text{arg min}_{\hat{\tilde{\beta}}} \hspace{.2cm} ||\tilde{y} - X\hat{\tilde{\beta}}||^2_2 + \lambda||\hat{\tilde{\beta}}_L||_1,
+\end{equation}
+the L1 penalty results in $||\tilde{x}||_1 = |x_1| + \dots + |x_m|$, which minimizes the absolute differences. 
+\vfill
+The nice feature of LASSO, relative to ridge regression, is that coefficients are shrunk to 0 providing a way to do *variable selection.* 
+\vfill
+One challenge with LASSO is coming up with proper distributional assumptions for inference about variables.
+\vfill
+Consider the following prior $p(\tilde{\beta}) = N(0, I_p\tau^2)$. How does this relate to ridge regression? First compute the posterior distribution for $\tilde{\beta}$.
+\begin{eqnarray*}
+p(\tilde{\beta}|-) &\propto& \exp \left[-\frac{1}{2}\left(\frac{1}{\sigma^2}\tilde{\beta}^T X^T X \tilde{\beta} - \frac{1}{\sigma^2} \tilde{\beta}^T X^T \tilde{y} + \tilde{\beta}^T \frac{I_p}{\tau^2} \tilde{\beta} \right) \right]\\
+&\propto& \exp \left[-\frac{1}{2}\left(\frac{1}{\sigma^2}\tilde{\beta}^T\left( X^T X + \frac{\sigma^2}{\tau^2} I_p \right)\tilde{\beta} - \frac{1}{\sigma^2} \tilde{\beta}^T X^T \tilde{y} \right) \right]
+\end{eqnarray*}
+\vfill
+Thus $Var(\tilde{\beta}|-) = \left(X^TX + \frac{\sigma^2}{\tau^2}I_p\right)^{-1} \sigma^2$ and $E(\tilde{\beta}|-) = \left(X^TX + \frac{\sigma^2}{\tau^2}I_p\right)^{-1} X^t \tilde{y}$.
+\vfill
+__Q:__ does this look familiar?
+\vfill
+Define: $\lambda= \frac{\sigma^2}{\tau^2}$. How about now? This is essentially the ridge regression point estimate.
+
+\newpage
+
+
+### Simulate Regression Data
+
+```{r}
+n <- 50
+p <- 10
+
+X <- cbind(matrix(runif(n*p,min = -1, max = 1), n, p))
+beta <- rep(0, p )
+beta[c(1,2)] <- c(3, 3)
+
+y <- rnorm(n, mean = X %*% beta, sd = 3)
+y_center <- y - mean(y)
+summary(lm(y_center~X))
+```
+
+### Ridge Regression
+
+```{r}
+ridge_fit <- glmnet(X, y_center, alpha = 0, lambda = 0)
+t(coef(ridge_fit))
+```
+
+\newpage
+
+```{r}
+t(coef(glmnet(X, y_center, alpha = 0, lambda = 1e6)))
+ridge_fit_cv <- cv.glmnet(X, y_center, alpha = 0)
+lambdas_seq <- 10^seq(-3, 5, length.out = 100)
+ridge_cv <- cv.glmnet(X, y_center, alpha = 0, lambda = lambdas_seq)
+plot(ridge_cv)
+print(ridge_cv) 
+```
+
+\newpage
+
+```{r}
+ridge_fit <- glmnet(X, y_center, alpha = 0, lambda = ridge_cv$lambda.min)
+t(coef(ridge_fit))
+```
+
+### Lasso
+
+```{r}
+t(coef(glmnet(X, y_center, alpha = 0, lambda = 0)))
+t(coef(glmnet(X, y_center, alpha = 1, lambda = 1e6)))
+
+
+lasso_cv <- cv.glmnet(X, y_center, alpha = 1, lambda = lambdas_seq)
+plot(lasso_cv) 
+
+lasso_fit <- glmnet(X, y_center, alpha = 1, lambda = lasso_cv$lambda.min)
+coef(lasso_fit)
+```
+
